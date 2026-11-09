@@ -1,0 +1,18 @@
+# 采集器配置。采集器只向外上报，不开端口，也不接受任何命令。
+hub: https://tianshu.example.com
+# 令牌文件，权限 0600。也可以用环境变量 WANGLOU_TOKEN。
+token_file: /etc/wanglou-agent/token
+# 这台机器在目录里的 slug
+device: my-server
+interval_s: 30
+
+# 扫描本机 Git 仓库。不想上报可以删掉这一段。
+# git_roots: ["/srv/apps"]
+# git_every_s: 600
+# git_max_depth: 5
+
+# 不安装采集器的主机，可以从这里用 SSH 只读采集。
+# 脚本只读 /proc、df、systemctl、ss，不写任何东西。
+# ssh_binary: ssh
+# ssh:
+#   - {device: edge-relay, host: edge-relay, interval_s: 60}

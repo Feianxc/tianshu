@@ -1,0 +1,21 @@
+# Local data, tokens and private settings never leave the machine
+.local/
+data/
+*.db
+*.db-wal
+*.db-shm
+*.token
+.env
+
+# Build output
+.build/
+node_modules/
+web/dist/
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 和网页标志同一个图形：北斗七星的发丝线轮廓，天枢点亮为暖金色。安全区是中间 66dp。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M26.5,68.4L34.5,55.4L44.4,52.9L57.2,50.6L64.3,58.1L81.55,52L81.1,39.65L57.2,50.6"
+        android:strokeColor="#7E8A9E"
+        android:strokeWidth="1.8"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#A4AEC0"
+        android:pathData="M81.55,52m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0M64.3,58.1m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0M57.2,50.6m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0M44.4,52.9m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0M34.5,55.4m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0M26.5,68.4m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0" />
+    <path
+        android:fillColor="#F0C987"
+        android:fillAlpha="0.18"
+        android:pathData="M81.1,39.65m-8.5,0a8.5,8.5 0,1 1,17 0a8.5,8.5 0,1 1,-17 0" />
+    <path
+        android:fillColor="#F0C987"
+        android:pathData="M81.1,39.65m-4.6,0a4.6,4.6 0,1 1,9.2 0a4.6,4.6 0,1 1,-9.2 0" />
+</vector>

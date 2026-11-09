@@ -1,0 +1,77 @@
+# Demo catalog. Every name, address and URL here is fictional.
+# Import with:  wanglou import examples/catalog
+# Workspaces are authorization boundaries; tags are only for filtering.
+
+workspaces:
+  - {slug: personal, name: Personal Studio, kind: personal, cloud_policy: allow, color: "#0f766e"}
+  - {slug: acme, name: Acme Corp, kind: company, cloud_policy: summary, color: "#1d4ed8"}
+  - {slug: client-a, name: Client A, kind: client, cloud_policy: deny, color: "#9333ea"}
+
+devices:
+  - slug: home-server
+    workspace: personal
+    name: Home server
+    attrs: {device_type: server, availability: always_on, address: 192.0.2.10, ssh_alias: home-server, os: Debian 12}
+  - slug: laptop
+    workspace: personal
+    name: Laptop
+    attrs: {device_type: pc, availability: intermittent, os: Windows 11}
+  - slug: phone
+    workspace: personal
+    name: Android phone
+    attrs: {device_type: phone, availability: event}
+  - slug: acme-app-1
+    workspace: acme
+    name: Acme app server
+    attrs: {device_type: server, availability: always_on, address: 198.51.100.20, os: Ubuntu 24.04}
+
+projects:
+  - slug: tianshu
+    workspace: personal
+    name: Tianshu
+    summary: Personal control plane for devices, services, projects and repositories.
+    attrs: {stage: building, priority: P1, next_step: Connect the phone and the watch, goal: See everything from one screen}
+  - slug: blog
+    workspace: personal
+    name: Blog
+    attrs: {stage: maintaining, priority: P2}
+  - slug: acme-portal
+    workspace: acme
+    name: Acme customer portal
+    attrs: {stage: verifying, priority: P0, next_step: Run the acceptance checklist with the customer}
+  - slug: client-a-site
+    workspace: client-a
+    name: Client A website
+    attrs: {stage: idea}
+
+repositories:
+  - {slug: tianshu-repo, workspace: personal, name: example/tianshu, project: [tianshu]}
+
+credentials:
+  - slug: home-server-ssh
+    workspace: personal
+    name: Home server SSH key
+    attrs: {storage: os_keyring, mode: SSH key, locator: "keyring://home-server", usage: Administration}
+
+services:
+  - slug: blog-web
+    workspace: personal
+    name: Blog website
+    runs_on: [home-server]
+    project: [blog]
+    attrs: {service_kind: web, environment: production, unit: blog.service, url: "https://blog.example.com"}
+    checks:
+      - {kind: http, target: "https://blog.example.com/", expect_status: [200], interval_s: 300}
+  - slug: tianshu-hub
+    workspace: personal
+    name: Tianshu hub
+    runs_on: [home-server]
+    project: [tianshu]
+    uses: [home-server-ssh]
+    attrs: {service_kind: api, environment: production, unit: wanglou.service}
+  - slug: acme-portal-web
+    workspace: acme
+    name: Acme portal
+    runs_on: [acme-app-1]
+    project: [acme-portal]
+    attrs: {service_kind: web, environment: production, url: "https://portal.example.com"}

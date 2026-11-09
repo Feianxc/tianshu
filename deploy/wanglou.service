@@ -1,0 +1,42 @@
+[Unit]
+Description=Tianshu personal control plane (program name: wanglou)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wanglou
+Group=wanglou
+EnvironmentFile=/etc/wanglou/env
+ExecStart=/srv/apps/wanglou/current/wanglou serve
+Restart=always
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/wanglou
+# The hub has to reach out: probes and GitHub. It holds no server keys, so it is
+# not confined to loopback. 256 MB is several times its normal footprint.
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

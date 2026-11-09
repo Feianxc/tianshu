@@ -1,0 +1,30 @@
+[Unit]
+Description=Wanglou collector (outbound only, accepts no commands)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wanglou-agent
+Group=wanglou-agent
+ExecStart=/usr/local/bin/wanglou-agent run -config /etc/wanglou-agent/agent.yaml
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryMax=64M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target

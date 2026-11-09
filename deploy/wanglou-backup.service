@@ -1,0 +1,17 @@
+[Unit]
+Description=Tianshu daily database backup (keeps 14 days)
+After=wanglou.service
+
+[Service]
+Type=oneshot
+User=wanglou
+Group=wanglou
+EnvironmentFile=/etc/wanglou/env
+UMask=0077
+# backup 用 SQLite 的在线备份，服务运行时也能做；目标文件已存在时拒绝，所以文件名带到分钟。
+ExecStart=/bin/sh -c '/srv/apps/wanglou/current/wanglou backup /var/backups/wanglou/wanglou-$(date +%%Y%%m%%d-%%H%%M).db && find /var/backups/wanglou -name "wanglou-*.db" -mtime +14 -delete'
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/wanglou /var/backups/wanglou
