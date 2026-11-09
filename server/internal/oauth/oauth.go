@@ -140,7 +140,7 @@ func (s *Server) serverMeta(w http.ResponseWriter, _ *http.Request) {
 		"code_challenge_methods_supported":               []string{"S256"},
 		"token_endpoint_auth_methods_supported":          []string{"none"},
 		"scopes_supported":                               []string{model.ScopeRead, model.ScopeEvidence},
-		"client_id_metadata_document_supported":          true,
+		"client_id_metadata_document_supported":          len(s.MetadataHosts) > 0,
 		"authorization_response_iss_parameter_supported": true,
 	})
 }
@@ -230,6 +230,11 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 func (s *Server) lookupClient(ctx context.Context, id string) (store.OAuthClient, error) {
 	if !strings.HasPrefix(id, "https://") {
 		return s.Store.OAuthClientByID(ctx, id)
+	}
+	// A hub that cannot reach the client's host (for example behind a firewall) turns
+	// metadata documents off; the metadata then stops advertising them and clients register.
+	if len(s.MetadataHosts) == 0 {
+		return store.OAuthClient{}, errors.New("这台服务器没有开启 Client ID Metadata Document，请在客户端里删掉这个连接后重新添加，改用动态注册")
 	}
 	u, err := url.Parse(id)
 	if err != nil || u.User != nil || u.Fragment != "" {

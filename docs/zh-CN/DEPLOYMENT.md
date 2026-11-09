@@ -42,6 +42,7 @@ curl -s http://127.0.0.1:8787/healthz
 | `WANGLOU_GITHUB` | 开 | 设为 `off` 关闭 GitHub 同步 |
 | `WANGLOU_GITHUB_TOKEN` | 空 | 只读令牌，没有时尝试 `gh auth token` |
 | `WANGLOU_GITHUB_WORKSPACE` | `personal` | 新发现的仓库放进哪个空间 |
+| `WANGLOU_OAUTH_CIMD` | 开 | 服务器访问不到 `chatgpt.com` 等客户端主机时（比如在国内）设为 `off`：元数据不再声明支持 Client ID Metadata Document，ChatGPT 等客户端改用动态注册 |
 
 ## 安全地对外开放
 

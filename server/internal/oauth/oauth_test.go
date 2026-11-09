@@ -531,3 +531,27 @@ func TestPruneKeepsClientsThatAreInUse(t *testing.T) {
 		t.Fatal("有令牌的客户端不能被清掉")
 	}
 }
+
+// A hub behind a firewall cannot fetch metadata documents. With them turned off it must
+// stop advertising them, refuse URL client IDs with a clear answer, and keep registration working.
+func TestMetadataDocumentsCanBeTurnedOff(t *testing.T) {
+	e := setup(t)
+	e.as.MetadataHosts = nil
+	r, err := http.Get(e.ts.URL + "/.well-known/oauth-authorization-server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var meta map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&meta)
+	r.Body.Close()
+	if meta["client_id_metadata_document_supported"] != false || meta["registration_endpoint"] == nil {
+		t.Fatalf("关闭后不应再声明支持元数据文档，注册要保留: %v", meta)
+	}
+	if r := e.authorize("https://allowed.example/client.json", "https://allowed.example/cb", e.as.Resource()); r.StatusCode != 400 {
+		t.Fatalf("网址形式的 client_id 应被拒绝，得到 %d", r.StatusCode)
+	}
+	id := e.register("https://chatgpt.example/cb")
+	if r := e.authorize(id, "https://chatgpt.example/cb", e.as.Resource()); r.StatusCode != 302 {
+		t.Fatalf("动态注册的客户端应能走到确认页，得到 %d", r.StatusCode)
+	}
+}

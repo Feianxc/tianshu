@@ -215,7 +215,12 @@ func serve(ctx context.Context, st *store.Store, logger *log.Logger) error {
 	var as *oauth.Server
 	resource, metadata := "", ""
 	if public != "" {
-		as = &oauth.Server{Store: st, Public: public, MetadataHosts: oauth.DefaultMetadataHosts}
+		hosts := oauth.DefaultMetadataHosts
+		// off when the hub cannot reach those hosts; clients then use dynamic registration
+		if os.Getenv("WANGLOU_OAUTH_CIMD") == "off" {
+			hosts = nil
+		}
+		as = &oauth.Server{Store: st, Public: public, MetadataHosts: hosts}
 		resource, metadata = as.Resource(), as.MetadataURL()
 	}
 	srv := api.New(api.Config{Store: st, View: vw, MCP: mcpsrv.Handler(st, vw, resource, metadata, trustCF), OAuth: as, Web: webui.Handler(),

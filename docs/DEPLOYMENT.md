@@ -42,6 +42,7 @@ The unit runs under a strict systemd sandbox with a 256 MB memory limit. The bac
 | `WANGLOU_GITHUB` | on | `off` disables the GitHub connector |
 | `WANGLOU_GITHUB_TOKEN` | empty | Read-only token; falls back to `gh auth token` |
 | `WANGLOU_GITHUB_WORKSPACE` | `personal` | Workspace for newly discovered repositories |
+| `WANGLOU_OAUTH_CIMD` | on | `off` when the hub cannot reach `chatgpt.com` and the other client hosts (for example behind a national firewall). The metadata then stops advertising Client ID Metadata Documents and clients such as ChatGPT use dynamic registration instead |
 
 ## Expose it safely
 
