@@ -141,10 +141,10 @@ func (e *env) grant(spaces []string) (client, redirect, code string) {
 	client = e.register(redirect)
 	r := e.authorize(client, redirect, e.as.Resource())
 	loc := r.Header.Get("Location")
-	if r.StatusCode != 302 || !strings.HasPrefix(loc, "/#/oauth/") {
+	if r.StatusCode != 302 || !strings.HasPrefix(loc, "/consent/") {
 		e.t.Fatalf("authorize: %d %s", r.StatusCode, loc)
 	}
-	back, err := url.Parse(e.decide(strings.TrimPrefix(loc, "/#/oauth/"), true, spaces))
+	back, err := url.Parse(e.decide(strings.TrimPrefix(loc, "/consent/"), true, spaces))
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestDenyTellsTheClient(t *testing.T) {
 	redirect := "https://client.example/cb"
 	client := e.register(redirect)
 	r := e.authorize(client, redirect, e.as.Resource())
-	back := e.decide(strings.TrimPrefix(r.Header.Get("Location"), "/#/oauth/"), false, nil)
+	back := e.decide(strings.TrimPrefix(r.Header.Get("Location"), "/consent/"), false, nil)
 	if !strings.Contains(back, "error=access_denied") {
 		t.Fatal(back)
 	}
@@ -491,7 +491,7 @@ func TestJunkRequestsDoNotBlockARealAuthorization(t *testing.T) {
 	}
 	redirect := "https://client.example/cb"
 	client := e.register(redirect)
-	if r := e.authorize(client, redirect, e.as.Resource()); !strings.HasPrefix(r.Header.Get("Location"), "/#/oauth/") {
+	if r := e.authorize(client, redirect, e.as.Resource()); !strings.HasPrefix(r.Header.Get("Location"), "/consent/") {
 		t.Fatalf("垃圾请求挡住了真实授权: %d %s", r.StatusCode, r.Header.Get("Location"))
 	}
 }

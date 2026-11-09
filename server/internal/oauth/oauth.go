@@ -337,7 +337,10 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		bounce("server_error")
 		return
 	}
-	http.Redirect(w, r, "/#/oauth/"+id, http.StatusFound)
+	// A real path, not a #fragment: an identity-aware proxy in front of the console
+	// (Cloudflare Access) sends the browser back to the URL it saw, and a fragment never
+	// reaches it. The console turns /consent/<id> into its consent page on load.
+	http.Redirect(w, r, "/consent/"+id, http.StatusFound)
 }
 
 // Approve turns the owner's decision into a code and returns where to send the
