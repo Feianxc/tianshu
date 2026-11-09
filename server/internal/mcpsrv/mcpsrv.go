@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -43,8 +45,15 @@ func Handler(st *store.Store, vw *view.Service, resource, resourceMetadataURL st
 	srv := mcp.NewServer(&mcp.Implementation{Name: "wanglou", Title: "天枢", Version: Version},
 		&mcp.ServerOptions{Instructions: instructions})
 	register(srv, st, vw)
+	// The SDK's DNS-rebinding guard rejects every non-loopback Host when the server listens
+	// on loopback, which is exactly how the hub runs behind a tunnel. Keep the guard, but
+	// with an explicit allowlist: loopback names plus the host of the public URL.
 	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv },
-		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
+		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, DisableLocalhostProtection: true})
+	publicHost := ""
+	if u, err := url.Parse(resource); err == nil {
+		publicHost = strings.ToLower(u.Host)
+	}
 	verify := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		var v model.Viewer
 		var err error
@@ -65,12 +74,34 @@ func Handler(st *store.Store, vw *view.Service, resource, resourceMetadataURL st
 	}
 	protected := auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{ResourceMetadataURL: resourceMetadataURL})(h)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !allowedHost(r.Host, publicHost) {
+			http.Error(w, "Forbidden: invalid Host header", http.StatusForbidden)
+			return
+		}
 		ip := r.RemoteAddr
 		if trustCF && r.Header.Get("CF-Connecting-IP") != "" {
 			ip = r.Header.Get("CF-Connecting-IP")
 		}
 		protected.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ipKey, ip)))
 	})
+}
+
+// allowedHost accepts loopback names and the configured public host. A browser tricked
+// by DNS rebinding sends the attacker's host name and is refused.
+func allowedHost(host, public string) bool {
+	h := strings.ToLower(host)
+	if public != "" && h == public {
+		return true
+	}
+	if hh, _, err := net.SplitHostPort(h); err == nil {
+		h = hh
+	}
+	h = strings.Trim(h, "[]")
+	if h == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
 }
 
 func viewerOf(req *mcp.CallToolRequest) (model.Viewer, error) {

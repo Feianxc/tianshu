@@ -6,9 +6,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Feianxc/tianshu/server/internal/mcpsrv"
+	"github.com/Feianxc/tianshu/server/internal/view"
 )
 
 type pairReq struct {
@@ -164,5 +168,33 @@ func TestSnoozeIsBounded(t *testing.T) {
 	}
 	if code, b := f.do("POST", "/api/v1/findings/"+id+"/ack", f.owner, map[string]any{"snooze_hours": 30 * 24}); code != 200 {
 		t.Fatalf("30 天应允许: %d %s", code, b)
+	}
+}
+
+// Behind a tunnel the hub listens on loopback but is reached by its public name.
+// That name must work; any other non-loopback Host (DNS rebinding) must not.
+func TestMCPAcceptsItsPublicHostOnly(t *testing.T) {
+	f := newFixture(t)
+	h := mcpsrv.Handler(f.st, &view.Service{Store: f.st}, "https://hub.example.com/mcp", "https://hub.example.com/.well-known/oauth-protected-resource", false)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	send := func(host string) int {
+		body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`
+		req, _ := http.NewRequest("POST", ts.URL, strings.NewReader(body))
+		req.Host = host
+		req.Header.Set("Authorization", "Bearer "+f.agentA)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		r, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+		return r.StatusCode
+	}
+	for host, want := range map[string]int{"hub.example.com": 200, "HUB.example.com": 200, "127.0.0.1:8787": 200, "localhost": 200, "evil.example": 403, "hub.example.com.evil.example": 403} {
+		if got := send(host); got != want {
+			t.Fatalf("Host %s: 得到 %d，应为 %d", host, got, want)
+		}
 	}
 }
