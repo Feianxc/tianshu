@@ -84,7 +84,7 @@ Who reads what:
 - **Credentials resolve to a viewer.** Every request carries a token or a session; the viewer (identity, scopes, visible workspaces, allowed devices) is derived from it and passed down to every store call. A workspace sent by the client can only narrow the view.
 - **Isolation at the bottom.** Every store function that reads entities takes the viewer. Objects in other workspaces return 404, not 403. Cross-workspace relations show up as "restricted" with health only.
 - **Cloud policy per workspace.** `allow` returns full fields to agents, `summary` returns an allow-listed subset, `deny` hides the workspace from agents entirely, even with a `*` token. Unknown values are treated as `deny`.
-- **Agents are read-only.** Their maximum scopes are `read` and `evidence`. No tool executes commands, reads secrets or fetches arbitrary URLs.
+- **Agents are read-only.** Their maximum scopes are `read`, `evidence` and `logs`. No tool executes commands, reads secrets or fetches arbitrary URLs.
 - **No secrets in the catalog.** Values that look like passwords, private keys or tokens are refused. Tokens are stored as SHA-256 hashes and shown once.
 - **Sessions.** Browser sessions are `HttpOnly`, `SameSite=Strict`, `Secure` behind HTTPS, and writes require an anti-forgery header. Sessions last 12 hours.
 - **Device pairing.** A new device starts a request and shows an 8-character code; an administrator approves it on a signed-in device after comparing the code. The session is only issued when the new device polls with its own secret, once. Requests live in memory for 5 minutes and are rate-limited.

@@ -92,7 +92,7 @@ Read the [architecture notes](docs/ARCHITECTURE.md) for the data model, status r
 |---|---|
 | [Architecture](docs/ARCHITECTURE.md) | Data model, status rules, isolation, MCP, OAuth |
 | [Deployment](docs/DEPLOYMENT.md) | systemd, Cloudflare Tunnel + Access, collectors, backups, upgrades |
-| [Android shell](mobile/android/README.md) | Build a 17 KB WebView app without Gradle |
+| [Android shell](mobile/android/README.md) | Build a small WebView app without Gradle |
 | [Example catalog](examples/catalog/demo.yaml) | The YAML format, with fictional data |
 | [Security policy](SECURITY.md) | How to report a vulnerability |
 | [Contributing](CONTRIBUTING.md) | Development setup and conventions |

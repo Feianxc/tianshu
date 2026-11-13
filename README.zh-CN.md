@@ -75,7 +75,7 @@ claude mcp add --transport http tianshu https://tianshu.example.com/mcp \
 |---|---|
 | [架构](docs/zh-CN/ARCHITECTURE.md) | 数据模型、状态规则、空间隔离、MCP、OAuth |
 | [部署](docs/zh-CN/DEPLOYMENT.md) | systemd、Cloudflare Tunnel 和 Access、采集器、备份、升级 |
-| [安卓壳](mobile/android/README.md) | 不用 Gradle 打一个 17 KB 的 WebView 应用 |
+| [安卓壳](mobile/android/README.md) | 不用 Gradle 打一个很小的 WebView 应用 |
 | [示例目录](examples/catalog/demo.yaml) | YAML 格式，全部是虚构数据 |
 | [安全策略](SECURITY.md) | 如何报告漏洞 |
 | [参与开发](CONTRIBUTING.md) | 开发环境和约定 |
