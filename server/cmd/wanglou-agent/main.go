@@ -49,7 +49,7 @@ func main() {
 			out["repos"], out["errors"] = repos, errs
 		}
 		for _, t := range cfg.SSH {
-			r, err := agent.CollectSSH(ctx, cfg.SSHBinary, t.Host)
+			r, err := agent.CollectSSH(ctx, cfg.SSHBinary, t.Host, t.IntervalS)
 			if err != nil {
 				out[t.Device] = err.Error()
 			} else {

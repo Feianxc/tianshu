@@ -4,6 +4,7 @@ import { api, deviceTypeLabel, sourceCondition, uptime } from "../lib";
 import type { Card, Finding, Overview } from "../types";
 import { Ago, DeviceIcon, Empty, Failure, HealthChip, Lamp, Meter, Panel, StageRail, Unconfirmed } from "../ui";
 import { Telemetry } from "../telemetry";
+import { FindingHelp } from "../insight";
 import { StarLegend, StarMap } from "../starmap";
 
 // 首屏的论点：一句话说清现在要不要你出手。数字只在需要你处理时着色。
@@ -20,6 +21,7 @@ function headline(o: Overview): { n?: number; tone: string; text: string; sub: s
 
 function FindingRow({ f, reload }: { f: Finding; reload: () => void }) {
   const { can } = useApp();
+  const [help, setHelp] = useState(false);
   // 长期存在、短期解决不了的事项（比如明文密钥等密匣迁移）可以推迟到一周或一个月后再提醒。
   const snooze = async (hours: number) => {
     await api.post(`/api/v1/findings/${f.id}/ack`, { snooze_hours: hours });
@@ -34,6 +36,7 @@ function FindingRow({ f, reload }: { f: Finding; reload: () => void }) {
         <div className="finding-foot">
           {f.action && <span className="finding-action">{f.action}</span>}
           <Ago t={f.first_seen} prefix="发现于 " />
+          <button className="link help-toggle" onClick={() => setHelp(!help)} aria-expanded={help}>{help ? "收起" : "怎么处理"}</button>
           {can("write") && (
             <select className="snooze" aria-label={`稍后提醒：${f.title}`} value="" onChange={(e) => e.target.value && snooze(Number(e.target.value))}>
               <option value="" disabled hidden>稍后提醒</option>
@@ -43,6 +46,7 @@ function FindingRow({ f, reload }: { f: Finding; reload: () => void }) {
             </select>
           )}
         </div>
+        {help && <FindingHelp entityId={f.entity_id} rule={f.rule} />}
       </div>
     </li>
   );
@@ -108,6 +112,40 @@ function ProjectLine({ c }: { c: Card }) {
   );
 }
 
+// 健康度仪表：正常对象占有证据对象的比例。没有证据的不算正常，也不算进分母以外的地方。
+function HealthGauge({ rows }: { rows: Overview["wall"] }) {
+  const lamps = rows.flatMap((r) => [...r.devices, ...r.services]).filter((l) => !["paused", "offline", "planned", "retired"].includes(l.state));
+  const n = (s: string) => lamps.filter((l) => l.state === s).length;
+  const ok = n("ok"), bad = n("down"), warn = n("degraded"), blind = n("unknown");
+  const total = Math.max(1, lamps.length);
+  const R = 30, L = 2 * Math.PI * R;
+  const seg = (count: number, offset: number, cls: string) =>
+    count > 0 && <circle className={`hg-seg ${cls}`} cx="38" cy="38" r={R} strokeDasharray={`${(count / total) * L - 1.5} ${L}`} strokeDashoffset={-offset * L / total} />;
+  return (
+    <div className="hgauge" title="有证据且正常的对象占全部在役对象的比例">
+      <svg viewBox="0 0 76 76" aria-hidden="true">
+        <circle className="hg-track" cx="38" cy="38" r={R} />
+        <g transform="rotate(-90 38 38)">
+          {seg(ok, 0, "ok")}
+          {seg(warn, ok, "warn")}
+          {seg(bad, ok + warn, "fail")}
+          {seg(blind, ok + warn + bad, "blind")}
+        </g>
+      </svg>
+      <div className="hg-text">
+        <b className="mono">{Math.round((ok / total) * 100)}<small>%</small></b>
+        <span>健康度</span>
+      </div>
+      <ul className="hg-legend">
+        <li><i className="ok" />正常 <b className="mono">{ok}</b></li>
+        <li><i className="warn" />降级 <b className="mono">{warn}</b></li>
+        <li><i className="fail" />故障 <b className="mono">{bad}</b></li>
+        <li><i className="blind" />无证据 <b className="mono">{blind}</b></li>
+      </ul>
+    </div>
+  );
+}
+
 export function OverviewPage() {
   const { ov, space, spaceName } = useApp();
   const { data: o, error, reload } = ov;
@@ -129,6 +167,7 @@ export function OverviewPage() {
             <span className="mono">{o.totals.project ?? 0}</span> 个项目、<span className="mono">{o.totals.repository ?? 0}</span> 个仓库。
             {error && <span className="warn-inline"> 刷新失败，显示的是上一次的数据。</span>}
           </p>
+          <HealthGauge rows={o.wall} />
           <div className="recon" title="天枢最近一次汇总各来源数据的时间，每 15 秒刷新">
             <span className="recon-label">最近对账</span>
             <span className="recon-time">{hms(o.generated_at)}</span>

@@ -157,12 +157,19 @@ func (c *Connector) sync(ctx context.Context, interval int64) error {
 		if !ok {
 			id, ok = existing[strings.ToLower(r.HTMLURL)]
 		}
+		summary := r.Description
+		if model.LooksSecret(summary) {
+			summary = ""
+		}
+		if r := []rune(summary); len(r) > 300 {
+			summary = string(r[:300])
+		}
 		if !ok {
 			created, err := c.Store.CreateEntity(ctx, model.Entity{Kind: model.KindRepository, WorkspaceID: defaultWS,
-				Slug: strings.ToLower(r.Name), Name: r.Name, Summary: r.Description, Attrs: attrs, Origin: "github", Confirmed: false})
+				Slug: repoSlug(r.Name), Name: r.Name, Summary: summary, Attrs: attrs, Origin: "github", Confirmed: false})
 			if errors.Is(err, store.ErrConflict) {
 				created, err = c.Store.CreateEntity(ctx, model.Entity{Kind: model.KindRepository, WorkspaceID: defaultWS,
-					Slug: strings.ToLower(strings.ReplaceAll(r.FullName, "/", ".")), Name: r.FullName, Summary: r.Description, Attrs: attrs, Origin: "github", Confirmed: false})
+					Slug: repoSlug(strings.ReplaceAll(r.FullName, "/", ".")), Name: r.FullName, Summary: summary, Attrs: attrs, Origin: "github", Confirmed: false})
 			}
 			if err != nil {
 				return err
@@ -265,4 +272,19 @@ func (c *Connector) index(ctx context.Context) (map[string]string, error) {
 		}
 	}
 	return out, nil
+}
+
+var slugBad = regexp.MustCompile(`[^a-z0-9._-]+`)
+
+// repoSlug turns a repository name into a catalog slug: lowercase, starting with a
+// letter or digit, at most 81 characters. ".github" becomes "github", "_x" becomes "x".
+func repoSlug(name string) string {
+	s := strings.TrimLeft(slugBad.ReplaceAllString(strings.ToLower(name), "-"), "._-")
+	if len(s) > 81 {
+		s = s[:81]
+	}
+	if s == "" {
+		s = "repo"
+	}
+	return s
 }

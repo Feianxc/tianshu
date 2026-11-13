@@ -30,6 +30,8 @@ public class MainActivity extends Activity {
     private String homeHost;
     static final int BG = 0xFF05070C;
     private WebView web;
+    // 当前页面的主机名，给 ShellBridge 判断调用方是不是天枢自己的页面
+    private volatile String pageHost = "";
 
     @Override
     protected void onCreate(Bundle state) {
@@ -50,10 +52,28 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
-        s.setUserAgentString(s.getUserAgentString() + " WanglouShell/0.1");
+        s.setUserAgentString(s.getUserAgentString() + " WanglouShell/0.3");
         CookieManager.getInstance().setAcceptCookie(true);
 
+        web.addJavascriptInterface(new ShellBridge(this, new ShellBridge.PageHost() {
+            @Override
+            public String currentHost() { return pageHost; }
+            @Override
+            public String homeHost() { return homeHost; }
+            @Override
+            public String hubUrl() { return home; }
+        }), "TianshuShell");
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                pageHost = hostOf(url);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                pageHost = hostOf(url);
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
@@ -111,6 +131,11 @@ public class MainActivity extends Activity {
 
         if (state != null) web.restoreState(state);
         else web.loadUrl(home);
+    }
+
+    private static String hostOf(String url) {
+        String h = url == null ? null : Uri.parse(url).getHost();
+        return h == null ? "" : h;
     }
 
     private void back() {

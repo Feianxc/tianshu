@@ -130,7 +130,7 @@ func permits(kind, scope string) bool {
 	case "collector":
 		return scope == model.ScopeIngest
 	}
-	return scope == model.ScopeRead || scope == model.ScopeEvidence
+	return scope == model.ScopeRead || scope == model.ScopeEvidence || scope == model.ScopeLogs
 }
 
 // ViewerFor turns a principal into a Viewer.
@@ -293,4 +293,18 @@ func (s *Store) ListAudit(ctx context.Context, limit int) ([]model.AuditEvent, e
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+// SetAgentScopes replaces the scopes of a live agent. Other kinds are not changed here:
+// a person or a collector gets a new token instead.
+func (s *Store) SetAgentScopes(ctx context.Context, id string, scopes []string) (model.Principal, error) {
+	res, err := s.w.ExecContext(ctx, "UPDATE principals SET scopes=? WHERE id=? AND kind NOT IN ('human','collector') AND revoked_at IS NULL", toJSON(scopes), id)
+	if err != nil {
+		return model.Principal{}, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return model.Principal{}, ErrNotFound
+	}
+	row := s.w.QueryRowContext(ctx, `SELECT `+principalCols+` FROM principals WHERE id=?`, id)
+	return scanPrincipal(row)
 }

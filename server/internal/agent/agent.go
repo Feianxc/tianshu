@@ -27,7 +27,7 @@ import (
 )
 
 // Version is reported with every report.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // Config is the collector's YAML configuration.
 type Config struct {
@@ -172,7 +172,7 @@ func Run(ctx context.Context, c *Config, cl *Client, logger *log.Logger) {
 }
 
 func runLocal(ctx context.Context, c *Config, cl *Client, logger *log.Logger) {
-	col := newLocal()
+	col := newLocal(c.IntervalS)
 	interval := time.Duration(c.IntervalS) * time.Second
 	var lastGit time.Time
 	tick := func() {
@@ -207,7 +207,7 @@ func runSSH(ctx context.Context, c *Config, tg Target, cl *Client, logger *log.L
 		every = 60
 	}
 	tick := func() {
-		r, err := CollectSSH(ctx, c.SSHBinary, tg.Host)
+		r, err := CollectSSH(ctx, c.SSHBinary, tg.Host, every)
 		if err != nil {
 			// No report means the device's heartbeat simply ages, which is the
 			// truth: from here, we do not know.

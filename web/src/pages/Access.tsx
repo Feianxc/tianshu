@@ -3,6 +3,7 @@ import { useApp } from "../app";
 import { api, storageLabel, str, useData } from "../lib";
 import type { Card, Principal } from "../types";
 import { Ago, Drawer, Empty, Failure, Panel, Unconfirmed } from "../ui";
+import { PhoneReporting } from "../phone";
 
 const kindName: Record<string, string> = { human: "人", agent: "Agent", collector: "采集器" };
 
@@ -12,6 +13,7 @@ function NewIdentity({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   const [name, setName] = useState("");
   const [spaces, setSpaces] = useState<string[]>([]);
   const [evidence, setEvidence] = useState(false);
+  const [logs, setLogs] = useState(false);
   const [ttl, setTtl] = useState(90);
   const [devices, setDevices] = useState("");
   const [token, setToken] = useState("");
@@ -20,7 +22,7 @@ function NewIdentity({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setErr("");
-    const scopes = kind === "collector" ? ["ingest"] : evidence ? ["read", "evidence"] : ["read"];
+    const scopes = kind === "collector" ? ["ingest"] : ["read", ...(evidence ? ["evidence"] : []), ...(logs ? ["logs"] : [])];
     try {
       const r = await api.post<{ token: string }>("/api/v1/principals", {
         kind, name, scopes, workspaces: spaces, ttl_days: ttl,
@@ -67,6 +69,7 @@ function NewIdentity({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
               ))}
             </fieldset>
             <label className="check"><input type="checkbox" checked={evidence} onChange={(e) => setEvidence(e.target.checked)} /><span>允许提交验收证据</span></label>
+            <label className="check"><input type="checkbox" checked={logs} onChange={(e) => setLogs(e.target.checked)} /><span>允许读取日志</span><small>只对完整字段的空间生效</small></label>
           </>
         ) : (
           <label><span>可上报的设备 slug</span><input value={devices} onChange={(e) => setDevices(e.target.value)} placeholder="my-server, laptop" required /></label>
@@ -88,6 +91,11 @@ function Identities() {
     await api.del(`/api/v1/principals/${p.id}`);
     reload();
   };
+  const toggleLogs = async (p: Principal) => {
+    const scopes = p.scopes.includes("logs") ? p.scopes.filter((x) => x !== "logs") : [...p.scopes, "logs"];
+    await api.patch(`/api/v1/principals/${p.id}`, { scopes });
+    reload();
+  };
   if (error && !data) return <Failure error={error} retry={reload} />;
   const live = (data?.items ?? []).filter((p) => !p.revoked_at);
   return (
@@ -100,7 +108,8 @@ function Identities() {
               <tr key={p.id}>
                 <td data-l="名称">{p.name}<small className="num">{p.token_prefix}…</small></td>
                 <td data-l="类型">{kindName[p.kind] ?? p.kind}</td>
-                <td data-l="权限">{p.scopes.join("、")}</td>
+                <td data-l="权限">{p.scopes.join("、")}
+                  {p.kind === "agent" && <button className="link" onClick={() => toggleLogs(p)}>{p.scopes.includes("logs") ? "收回日志权限" : "允许读取日志"}</button>}</td>
                 <td data-l="空间或设备">{p.kind === "collector" ? p.devices.join("、") : p.workspaces.join("、")}</td>
                 <td data-l="最后使用">{p.last_used_at ? <Ago t={p.last_used_at} /> : "从未"}</td>
                 <td data-l="">{p.kind !== "human" && <button className="link danger" onClick={() => revoke(p)}>吊销</button>}</td>
@@ -128,6 +137,7 @@ export function AccessPage() {
           <p>这里记录每个系统的钥匙放在哪、谁能用。天枢不保存密码和私钥本身。</p>
         </div>
       </header>
+      <PhoneReporting />
       <Panel title="凭据引用" note={`${items.length} 条`}>
         {data && items.length === 0 ? <Empty title="还没有凭据引用" /> : (
           <div className="table-wrap">

@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
 	redirect_uris TEXT NOT NULL,
 	created_at    INTEGER NOT NULL
 );
+-- A client that ever got as far as a code is a real one and is never pruned as junk,
+-- even after all its tokens have expired and it comes back with the same client_id.
+CREATE TABLE IF NOT EXISTS oauth_client_used (client_id TEXT PRIMARY KEY) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS oauth_requests (
 	id             TEXT PRIMARY KEY,
 	client_id      TEXT NOT NULL,
@@ -128,6 +132,18 @@ func (s *Store) OAuthRequestByID(ctx context.Context, id string) (OAuthRequest, 
 	return r, err
 }
 
+// PendingOAuthRequests counts requests that have not expired, after dropping those
+// that have. Anyone who registered can park requests, so their number is capped.
+func (s *Store) PendingOAuthRequests(ctx context.Context) (int, error) {
+	now := ms(s.Now())
+	if _, err := s.w.ExecContext(ctx, "DELETE FROM oauth_requests WHERE expires_at<?", now); err != nil {
+		return 0, err
+	}
+	var n int
+	err := s.r.QueryRowContext(ctx, "SELECT count(*) FROM oauth_requests").Scan(&n)
+	return n, err
+}
+
 // DeleteOAuthRequest removes a decided request.
 func (s *Store) DeleteOAuthRequest(ctx context.Context, id string) error {
 	_, err := s.w.ExecContext(ctx, "DELETE FROM oauth_requests WHERE id=?", id)
@@ -139,6 +155,9 @@ func (s *Store) IssueOAuthCode(ctx context.Context, r OAuthRequest, principalID 
 	code := randToken()
 	_, err := s.w.ExecContext(ctx, `INSERT INTO oauth_codes(code_hash,client_id,redirect_uri,code_challenge,resource,principal_id,expires_at)
 		VALUES(?,?,?,?,?,?,?)`, hashToken(code), r.ClientID, r.RedirectURI, r.CodeChallenge, r.Resource, principalID, ms(s.Now().Add(ttl)))
+	if err == nil {
+		_, err = s.w.ExecContext(ctx, "INSERT OR IGNORE INTO oauth_client_used(client_id) VALUES(?)", r.ClientID)
+	}
 	return code, err
 }
 
@@ -275,6 +294,7 @@ func (s *Store) PruneOAuth(ctx context.Context) error {
 // register, so without this a burst of junk would fill the table for good.
 func (s *Store) PruneOAuthClients(ctx context.Context, age time.Duration) error {
 	_, err := s.w.ExecContext(ctx, `DELETE FROM oauth_clients WHERE created_at<?
+		AND client_id NOT IN (SELECT client_id FROM oauth_client_used)
 		AND client_id NOT IN (SELECT client_id FROM oauth_tokens)
 		AND client_id NOT IN (SELECT client_id FROM oauth_codes)
 		AND client_id NOT IN (SELECT client_id FROM oauth_requests)`, ms(s.Now().Add(-age)))

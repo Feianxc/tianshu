@@ -4,10 +4,13 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Feianxc/tianshu/server/internal/catalog"
 	"github.com/Feianxc/tianshu/server/internal/model"
+	"github.com/Feianxc/tianshu/server/internal/view"
 )
 
 func (s *Server) oauthRequest(w http.ResponseWriter, r *http.Request, _ model.Viewer) {
@@ -30,6 +33,7 @@ func (s *Server) oauthDecide(w http.ResponseWriter, r *http.Request, v model.Vie
 		Approve    bool     `json:"approve"`
 		Workspaces []string `json:"workspaces"`
 		Evidence   bool     `json:"evidence"`
+		Logs       bool     `json:"logs"`
 	}
 	if !decode(w, r, 4096, &in) {
 		return
@@ -45,7 +49,7 @@ func (s *Server) oauthDecide(w http.ResponseWriter, r *http.Request, v model.Vie
 			writeError(w, http.StatusBadRequest, "bad_request", "至少选择一个空间")
 			return
 		}
-		target, err = s.cfg.OAuth.Approve(r.Context(), req, in.Workspaces, in.Evidence)
+		target, err = s.cfg.OAuth.Approve(r.Context(), req, in.Workspaces, in.Evidence, in.Logs)
 	} else {
 		target, err = s.cfg.OAuth.Deny(r.Context(), req)
 	}
@@ -124,4 +128,26 @@ func slugify(s string) string {
 		out = out[:70]
 	}
 	return out
+}
+
+func (s *Server) logs(w http.ResponseWriter, r *http.Request, v model.Viewer) {
+	q := r.URL.Query()
+	since, _ := time.ParseDuration(q.Get("since"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	out, err := s.vw.Logs(r.Context(), v, view.LogQuery{EntityID: r.PathValue("id"), Unit: q.Get("unit"), Level: q.Get("level"),
+		Since: since, Contains: q.Get("q"), Limit: limit})
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) diagnose(w http.ResponseWriter, r *http.Request, v model.Viewer) {
+	out, err := s.vw.Diagnose(r.Context(), v, r.PathValue("id"))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }

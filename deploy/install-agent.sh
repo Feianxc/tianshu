@@ -18,6 +18,8 @@ here=$(cd "$(dirname "$0")" && pwd)
 [ -f "$here/wanglou-agent" ] || { echo "找不到 wanglou-agent 二进制" >&2; exit 1; }
 
 id wanglou-agent >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin wanglou-agent
+# 读系统日志需要这个组；没有它，日志采集为空
+getent group systemd-journal >/dev/null && usermod -aG systemd-journal wanglou-agent
 install -m 0755 "$here/wanglou-agent" /usr/local/bin/wanglou-agent
 install -d -m 0750 -o root -g wanglou-agent /etc/wanglou-agent
 install -m 0640 -o root -g wanglou-agent "$token_file" /etc/wanglou-agent/token

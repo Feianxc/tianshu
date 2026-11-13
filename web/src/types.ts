@@ -268,3 +268,64 @@ export interface AuditEvent {
   ip: string;
   detail: string;
 }
+
+export interface LogLine {
+  ts: string;
+  device?: string;
+  unit: string;
+  ident?: string;
+  priority: number;
+  level: "critical" | "error" | "warning" | "notice" | "info";
+  message: string;
+  repeat?: number;
+}
+
+export interface LogStat {
+  unit: string;
+  errors: number;
+  warnings: number;
+  total: number;
+  newest: string;
+}
+
+export interface LogsOut {
+  target: string;
+  kind: Kind;
+  text_shown: boolean;
+  withheld?: string;
+  collecting: boolean;
+  since: string;
+  units: LogStat[];
+  lines: LogLine[];
+}
+
+export interface Playbook {
+  meaning: string;
+  steps: string[];
+  commands?: string[];
+}
+
+export interface Problem extends Finding {
+  playbook?: Playbook;
+}
+
+export interface CheckRun {
+  ts: string;
+  ok: boolean;
+  latency_ms: number | null;
+  error?: string;
+}
+
+export interface Diagnosis {
+  target: string;
+  name: string;
+  kind: Kind;
+  health: HealthState;
+  reason: string;
+  problems: Problem[];
+  probes: { kind: string; target: string; runs: CheckRun[] }[];
+  hosts: { slug: string; health: HealthState; reason: string }[];
+  logs: LogsOut | null;
+  signals: Signal[];
+  note: string;
+}

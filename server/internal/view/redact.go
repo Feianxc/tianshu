@@ -57,6 +57,7 @@ func (s *Service) redact(ctx context.Context, v model.Viewer, c Card) Card {
 		}
 	}
 	c.Attrs = attrs
+	c.Health.Reason = genericReason(c.Health.State)
 	if c.Service != nil {
 		brief := *c.Service
 		brief.URL = ""
@@ -128,9 +129,11 @@ func (s *Service) projectSignals(ctx context.Context, v model.Viewer, workspaceI
 			g.Value = val
 			g.Source = ""
 			g.Error = ""
-			if strings.HasPrefix(g.Name, "check.") {
-				g.Name, _, _ = strings.Cut(g.Name, ":")
+			// Names and summaries carry unit names, mount points and probe targets.
+			if i := strings.IndexByte(g.Name, ':'); i > 0 {
+				g.Name = g.Name[:i]
 			}
+			g.Summary = genericSignal(g.State)
 		}
 		out = append(out, g)
 	}
@@ -160,7 +163,10 @@ func (s *Service) redactFindings(ctx context.Context, v model.Viewer, in []model
 			f.Detail = otherSpaces.ReplaceAllString(f.Detail, "")
 		}
 		if s.limited(ctx, v, f.WorkspaceID) {
+			// The detail and the action quote units, paths, dates and addresses; in a
+			// summary workspace an agent gets what the rule means instead.
 			f.Evidence = map[string]any{}
+			f.Detail, f.Action = genericFinding(f.Rule), ""
 		}
 		out = append(out, f)
 	}

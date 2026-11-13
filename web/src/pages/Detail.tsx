@@ -4,6 +4,7 @@ import { api, collectorLabel, deviceTypeLabel, freshLabel, healthLabel, kindLabe
 import type { Detail, Ref, Sample, Signal } from "../types";
 import { Ago, Drawer, Empty, Failure, HealthChip, Lamp, Panel, StageRail, TrendChart, Unconfirmed } from "../ui";
 import { EntityEditor } from "./Editor";
+import { DiagnosisPanel, LogTerminal } from "../insight";
 
 const lifeLabel: Record<string, string> = { active: "运行中", paused: "已暂停", planned: "计划中", retired: "已退役" };
 
@@ -255,7 +256,9 @@ export function DetailPage({ id }: { id: string }) {
         </Panel>
       )}
 
+      {(d.kind === "device" || d.kind === "service") && <DiagnosisPanel id={d.id} />}
       {d.kind === "device" && dev?.last_seen && <Metrics id={d.id} />}
+      {(d.kind === "device" || d.kind === "service") && <LogTerminal id={d.id} />}
       {d.kind === "device" && d.signals.filter((g) => g.signal === "sec.ssh").map((g) => <LoginPosture key={g.signal} g={g} />)}
 
       <div className="cols cols-even">

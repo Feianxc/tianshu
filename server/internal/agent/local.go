@@ -23,9 +23,10 @@ import (
 type local struct {
 	lastRx, lastTx float64
 	lastAt         time.Time
+	intervalS      int64
 }
 
-func newLocal() *local { return &local{} }
+func newLocal(intervalS int64) *local { return &local{intervalS: intervalS} }
 
 func f(v float64) *float64 { return &v }
 
@@ -93,6 +94,7 @@ func (l *local) Collect(ctx context.Context) model.Report {
 	}
 	if runtime.GOOS == "linux" {
 		collectSystemd(ctx, &r)
+		collectJournal(ctx, &r, l.intervalS)
 	}
 	return r
 }

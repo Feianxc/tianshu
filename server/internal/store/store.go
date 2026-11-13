@@ -244,7 +244,7 @@ func Open(dir string) (*Store, error) {
 		return nil, err
 	}
 	w.SetMaxOpenConns(1)
-	if _, err := w.Exec(schema + oauthSchema); err != nil {
+	if _, err := w.Exec(schema + oauthSchema + logsSchema); err != nil {
 		w.Close()
 		return nil, fmt.Errorf("schema: %w", err)
 	}
@@ -306,6 +306,9 @@ func (s *Store) Prune(ctx context.Context) error {
 	if _, err := s.w.ExecContext(ctx, `DELETE FROM signals WHERE signal LIKE 'check.%' AND NOT EXISTS (
 		SELECT 1 FROM checks c WHERE c.entity_id=signals.entity_id AND c.enabled=1
 		AND signals.signal='check.'||c.kind||':'||c.target)`); err != nil {
+		return err
+	}
+	if err := s.pruneLogs(ctx); err != nil {
 		return err
 	}
 	return s.PruneOAuth(ctx)

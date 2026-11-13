@@ -323,6 +323,16 @@ func (s *Server) removeRelation(w http.ResponseWriter, r *http.Request, v model.
 		s.fail(w, err)
 		return
 	}
+	// A service moved off a host must stop carrying that host's unit results at once,
+	// not an hour later when pruning catches up.
+	if typ == model.RelRunsOn {
+		if dev, err := s.st.GetEntity(r.Context(), model.System(), to); err == nil {
+			if err := s.st.DeleteSignals(r.Context(), from, "unit:"+dev.Slug+":", nil); err != nil {
+				s.fail(w, err)
+				return
+			}
+		}
+	}
 	s.audit1(r, v, "relation.remove", from+" "+typ+" "+to, "ok", "")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -445,8 +455,8 @@ func (s *Server) createPrincipal(w http.ResponseWriter, r *http.Request, v model
 		}
 		// The store enforces this ceiling on every path; refusing here tells the
 		// person asking instead of quietly handing back a weaker token.
-		if in.Kind == "agent" && sc != model.ScopeRead && sc != model.ScopeEvidence {
-			writeError(w, http.StatusBadRequest, "bad_request", "Agent 身份只能持有 read 和 evidence 权限")
+		if in.Kind == "agent" && sc != model.ScopeRead && sc != model.ScopeEvidence && sc != model.ScopeLogs {
+			writeError(w, http.StatusBadRequest, "bad_request", "Agent 身份只能持有 read、evidence 和 logs 权限")
 			return
 		}
 	}

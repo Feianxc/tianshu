@@ -61,7 +61,7 @@ curl -s http://127.0.0.1:8787/healthz
 bash deploy/install-agent.sh <设备 slug> https://tianshu.example.com ./token
 ```
 
-采集器以无特权用户运行，内存上限 64 MB，CPU 上限 10%。卸载方法写在脚本开头。
+要采集日志，把它加入日志读取组：`usermod -aG systemd-journal wanglou-agent && systemctl restart wanglou-agent`。采集器以无特权用户运行，内存上限 64 MB，CPU 上限 10%。卸载方法写在脚本开头。
 
 Windows 上把 `deploy/agent.example.yaml` 复制成 `.local/agent.yaml`，运行 `start-online.cmd`；服务器地址和 SSH 别名写在 `.local/online-env.cmd`（格式见脚本里的注释）。采集器配置里的 `ssh:` 段用来采集不能装软件的主机。
 

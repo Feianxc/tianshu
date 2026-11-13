@@ -51,8 +51,8 @@ export function Palette({ onClose, onLogout }: { onClose: () => void; onLogout: 
 
   useEffect(() => setSel(0), [term, data]);
   useEffect(() => {
-    input.current?.focus();
     const prev = document.activeElement as HTMLElement | null;
+    input.current?.focus();
     return () => prev?.focus?.();
   }, []);
   useEffect(() => {

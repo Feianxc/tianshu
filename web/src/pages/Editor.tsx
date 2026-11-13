@@ -28,9 +28,18 @@ export function EntityEditor({ kind, entity, onClose, onSaved }: { kind: Kind; e
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Editing sends only what changed. The form shows defaults for fields an object never
+  // had; writing those back would, for example, turn a server into a manually logged phone.
+  const initial: Record<string, string> = {
+    stage: str(a.stage) || "idea", priority: str(a.priority), next_step: str(a.next_step), due: str(a.due),
+    device_type: str(a.device_type) || "phone", availability: str(a.availability) || "manual", rotation_due: str(a.rotation_due),
+  };
   const attrs = () => {
     const out: Record<string, unknown> = {};
-    const set = (k: string, v: string) => { out[k] = v === "" ? null : v; };
+    const set = (k: string, v: string) => {
+      if (entity && v === initial[k]) return;
+      out[k] = v === "" ? null : v;
+    };
     if (kind === "project") {
       set("stage", stage); set("priority", priority); set("next_step", nextStep); set("due", due);
     } else if (kind === "device") {

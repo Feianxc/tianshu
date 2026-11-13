@@ -364,7 +364,7 @@ func repoBrief(snap *status.Snapshot, e *model.Entity) *RepoBrief {
 		}
 	}
 	for _, g := range snap.Signals[e.ID] {
-		if !strings.HasPrefix(g.Name, "repo.local:") {
+		if !strings.HasPrefix(g.Name, "repo.local:") || g.Stale {
 			continue
 		}
 		if v := numOf(g.Value["dirty"]); v != nil {
@@ -592,7 +592,9 @@ func (s *Service) Overview(ctx context.Context, v model.Viewer, workspaceID stri
 			if e.Kind == model.KindProject {
 				key, what = "due", "项目计划日期"
 			}
-			if t, err := time.Parse("2006-01-02", strOf(e.Attrs, key)); err == nil && t.Sub(now) < 45*24*time.Hour {
+			// rotation_due is outside the summary allow-list for credentials.
+			hide := e.Kind == model.KindCredential && s.limited(ctx, v, e.WorkspaceID)
+			if t, err := time.Parse("2006-01-02", strOf(e.Attrs, key)); err == nil && !hide && t.Sub(now) < 45*24*time.Hour {
 				o.Expiring = append(o.Expiring, Expiring{EntityID: e.ID, Name: e.Name, What: what, At: t, DaysLeft: int(t.Sub(now).Hours() / 24)})
 			}
 		}

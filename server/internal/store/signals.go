@@ -349,7 +349,8 @@ func (s *Store) ListFindings(ctx context.Context, v model.Viewer, f FindingFilte
 	// Saying a key is shared with another workspace tells an agent that workspace
 	// exists, and for an agent it does not.
 	if v.Kind == "agent" {
-		q += " AND f.rule<>'host.ssh_shared_key'"
+		// Both rules describe other workspaces, which an agent cannot know exist.
+		q += " AND f.rule NOT IN ('host.ssh_shared_key','credential.cross_workspace')"
 	}
 	if f.Open {
 		q += " AND f.resolved_at IS NULL"
@@ -441,6 +442,15 @@ func (s *Store) EvidenceFor(ctx context.Context, projectID string, limit int) ([
 // earlier decision to ignore or adopt it stands.
 func (s *Store) SeeDiscovery(ctx context.Context, kind, deviceID, key string, payload map[string]any) error {
 	now := ms(s.Now())
+	// A device can propose at most 300 entries; past that, only known ones are refreshed.
+	var n int
+	if err := s.r.QueryRowContext(ctx, "SELECT count(*) FROM discoveries WHERE device_id=?", deviceID).Scan(&n); err != nil {
+		return err
+	}
+	if n >= 300 {
+		_, err := s.w.ExecContext(ctx, "UPDATE discoveries SET payload=?,last_seen=? WHERE kind=? AND device_id=? AND key=?", toJSON(payload), now, kind, deviceID, key)
+		return err
+	}
 	_, err := s.w.ExecContext(ctx, `INSERT INTO discoveries(id,kind,device_id,key,payload,state,first_seen,last_seen) VALUES(?,?,?,?,?,'new',?,?)
 		ON CONFLICT(kind,device_id,key) DO UPDATE SET payload=excluded.payload,last_seen=excluded.last_seen`,
 		NewID("dsc"), kind, deviceID, key, toJSON(payload), now, now)

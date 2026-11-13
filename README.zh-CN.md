@@ -27,11 +27,13 @@
 - **只认证据**：健康、新鲜度、生命周期、验收结论分开记录。过期的数据不算健康；SSH 允许密码登录这类暴露面只产生待处理事项，不把正常运行的主机涂黄。
 - **会自己消失的待处理**：规则把信号归并成去重后的清单，问题解决后自动关闭；可以推迟一天、一周或一个月再提醒。
 - **采集器**：Linux 和 Windows 上的小程序（主机指标、systemd 单元、监听端口、本地 Git 仓库），不能装软件的主机可以用只读 SSH 采集；HTTP、TCP、TLS 探测从天枢所在的位置发出。
+- **日志与诊断**：采集器上报警告及以上级别的系统日志和失败单元的最后几行；每条待处理都配有处理步骤（含义、做法、只读排查命令）。设备和服务页有日志终端和诊断面板。
 - **SSH 登录入口监控**：`sshd -T` 的实际生效值、近 1 小时失败登录、fail2ban 状态、能登录的钥匙指纹；开始观察之后新增的钥匙是紧急事项。
-- **给 AI Agent 的 MCP 服务**：`overview`、`search`、`get_entity`、`project_context`、`device_context`、`list_findings`、`access_options`、`submit_evidence`。Claude Code、Codex 用 Bearer 令牌，云端客户端用 OAuth 2.1（PKCE、动态注册、CIMD）。
+- **给 AI Agent 的 MCP 服务**：`overview`、`search`、`get_entity`、`project_context`、`device_context`、`list_findings`、`diagnose`、`logs`、`access_options`、`submit_evidence`。读取日志原文需要单独的 `logs` 权限。Claude Code、Codex 用 Bearer 令牌，云端客户端用 OAuth 2.1（PKCE、动态注册、CIMD）。
 - **空间隔离**：每个请求的身份只从凭据解析；看不到的对象一律 404；每个空间单独设置云端策略（`allow`、`summary`、`deny`），决定 Agent 能看到什么。
 - **不存秘密**：目录只记录凭据放在哪里，像密码或密钥的值会被拒绝；令牌只存哈希；Agent 的每次调用都留审计。
 - **设备配对登录**：手机上不用输令牌，在已登录的电脑上核对两边代码一致后点批准即可。
+- **手机状态**：安卓应用可每 15 分钟上报电量、网络、内存和存储，用的令牌只能为这部手机上报。
 - **命令面板**（`Ctrl K`）、夜间和日间模式、手机布局，以及一个很小的安卓 WebView 壳。
 
 <table>

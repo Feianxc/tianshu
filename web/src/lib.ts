@@ -48,8 +48,9 @@ export function useData<T>(path: string | null, refreshMs = 0): Loaded<T> {
   const [loading, setLoading] = useState(true);
   const seq = useRef(0);
   const load = useCallback(() => {
-    if (!path) return;
+    // A cleared path still bumps the sequence, so an answer to the previous path is ignored.
     const id = ++seq.current;
+    if (!path) return;
     api.get<T>(path).then(
       (d) => {
         if (id === seq.current) {

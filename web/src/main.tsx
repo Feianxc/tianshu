@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource-variable/instrument-sans/standard.css";
 import "@fontsource-variable/martian-mono/standard.css";
 import "./styles.css";
+import "./insight.css";
 import { App } from "./app";
 import { applyTheme, loadTheme } from "./lib";
 

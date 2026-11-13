@@ -261,3 +261,49 @@ type AuditEvent struct {
 	IP          string    `json:"ip"`
 	Detail      string    `json:"detail"`
 }
+
+// LogLine is one stored journal line. DeviceID is internal; the view layer replaces
+// it with a slug the viewer is allowed to know.
+type LogLine struct {
+	TS       time.Time `json:"ts"`
+	DeviceID string    `json:"-"`
+	Device   string    `json:"device,omitempty"`
+	Unit     string    `json:"unit"`
+	Ident    string    `json:"ident,omitempty"`
+	Priority int       `json:"priority"`
+	Level    string    `json:"level"`
+	Message  string    `json:"message"`
+	Repeat   int       `json:"repeat,omitempty"`
+}
+
+// LogStat counts the lines of one unit.
+type LogStat struct {
+	Unit     string    `json:"unit"`
+	Errors   int       `json:"errors"`
+	Warnings int       `json:"warnings"`
+	Total    int       `json:"total"`
+	Newest   time.Time `json:"newest"`
+}
+
+// CheckRun is one probe result.
+type CheckRun struct {
+	TS        time.Time `json:"ts"`
+	OK        bool      `json:"ok"`
+	LatencyMS *int64    `json:"latency_ms"`
+	Error     string    `json:"error,omitempty"`
+}
+
+// LogLevel names a syslog priority.
+func LogLevel(p int) string {
+	switch {
+	case p <= 2:
+		return "critical"
+	case p == 3:
+		return "error"
+	case p == 4:
+		return "warning"
+	case p == 5:
+		return "notice"
+	}
+	return "info"
+}

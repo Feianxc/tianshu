@@ -76,7 +76,11 @@ export function StarMap({ rows, devices, generatedAt }: { rows: WallRow[]; devic
     first.current = false;
     if (!fresh.length) return;
     setPulses((p) => [...p, ...fresh]);
-    timers.current.push(window.setTimeout(() => setPulses((p) => p.filter((x) => !fresh.includes(x))), 1600));
+    const t = window.setTimeout(() => {
+      setPulses((p) => p.filter((x) => !fresh.includes(x)));
+      timers.current = timers.current.filter((x) => x !== t);
+    }, 1600);
+    timers.current.push(t);
   }, [devices, nodes]);
 
   const [hover, setHover] = useState<Node | null>(null);
@@ -90,7 +94,21 @@ export function StarMap({ rows, devices, generatedAt }: { rows: WallRow[]; devic
             <stop offset="0" stopColor="var(--brand)" stopOpacity=".55" />
             <stop offset="1" stopColor="var(--brand)" stopOpacity="0" />
           </radialGradient>
+          <linearGradient id="sm-sweep" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="var(--accent)" stopOpacity="0" />
+            <stop offset="1" stopColor="var(--accent)" stopOpacity=".28" />
+          </linearGradient>
+          <radialGradient id="sm-core">
+            <stop offset="0" stopColor="var(--accent)" stopOpacity=".09" />
+            <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
+          </radialGradient>
         </defs>
+        <circle cx={C} cy={C} r={BEZEL} fill="url(#sm-core)" />
+        {/* 扫描臂：每 8 秒一圈，经过哪颗星，哪颗星就亮一下 */}
+        <g className="sm-sweep" style={{ transformOrigin: `${C}px ${C}px` }} aria-hidden="true">
+          <path d={`M${C} ${C}L${C + BEZEL} ${C}A${BEZEL} ${BEZEL} 0 0 0 ${C + BEZEL * Math.cos(-0.62)} ${C + BEZEL * Math.sin(-0.62)}Z`} fill="url(#sm-sweep)" />
+          <line x1={C} y1={C} x2={C + BEZEL} y2={C} className="sm-sweep-edge" />
+        </g>
         <circle className="sm-bezel" cx={C} cy={C} r={BEZEL} />
         {Array.from({ length: 120 }, (_, i) => {
           const a = (i * 3 * Math.PI) / 180, long = i % 10 === 0, r2 = BEZEL + (long ? 9 : 4);
@@ -112,6 +130,7 @@ export function StarMap({ rows, devices, generatedAt }: { rows: WallRow[]; devic
           <a key={n.l.id} href={`#/e/${n.l.id}`} className="sm-node" tabIndex={-1} aria-label={`${n.l.name}，${n.space}，${n.l.reason}`}
             onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(null)}>
             <circle cx={n.x} cy={n.y} r="18" className="sm-hit" />
+            <circle cx={n.x} cy={n.y} r={n.device ? 9 : 6} className="sm-ping" style={{ animationDelay: `${(((Math.atan2(n.y - C, n.x - C) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2)) * 8}s` }} />
             {glyph(n.l.state, n.l.freshness === "stale" && (n.l.state === "ok" || n.l.state === "unknown"), n.x, n.y, n.device ? 1.25 : 0.82)}
           </a>
         ))}

@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 天枢安卓壳：只加载构建时指定的天枢地址，不带任何业务逻辑。 -->
+<!-- 天枢安卓壳：加载构建时指定的天枢地址；开启后每 15 分钟上报一次手机状态。 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="online.feian.wanglou">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 定时上报在重启后继续 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:label="@string/app_name"
@@ -23,5 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".ReportJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 </manifest>

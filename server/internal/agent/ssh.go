@@ -15,7 +15,7 @@ import (
 )
 
 // sshScript runs on the target and reads only: /proc, df, systemctl, ss, the effective
-// sshd settings, the ssh journal and key fingerprints. It writes nothing and needs
+// sshd settings, key fingerprints and recent journal lines at warning level or worse. It writes nothing and needs
 // nothing installed, which is what makes it safe to point at production. Its output is a line protocol so no JSON has to be built in shell.
 const sshScript = `export LC_ALL=C
 cpu(){ awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8+$9, $5+$6}' /proc/stat; }
@@ -41,19 +41,24 @@ if [ "$(id -u)" = 0 ]; then
 fi
 ssh-keygen -lf "$HOME/.ssh/authorized_keys" 2>/dev/null | awk '{print "AKEY",$2}'
 echo "F2B $(systemctl is-active fail2ban 2>/dev/null)"
+J="journalctl --no-pager -o json --output-fields=PRIORITY,_SYSTEMD_UNIT,UNIT,SYSLOG_IDENTIFIER,MESSAGE"
+$J -p warning --since "-${WIN:-180}s" -n 150 2>/dev/null | sed 's/^/LOGJ /'
+for u in $(systemctl list-units --type=service --state=failed --no-legend --plain --no-pager 2>/dev/null | awk '{print $1}' | head -5); do
+  $J -u "$u" -n 12 2>/dev/null | sed 's/^/LOGF /'
+done
 echo END
 `
 
 // CollectSSH reads one host over SSH. The binary and host alias are the user's own
 // configuration; this package never sees a key.
-func CollectSSH(ctx context.Context, binary, host string) (model.Report, error) {
+func CollectSSH(ctx context.Context, binary, host string, intervalS int64) (model.Report, error) {
 	if binary == "" {
 		binary = "ssh"
 	}
 	c, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(c, binary, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, "bash", "-s")
-	cmd.Stdin = strings.NewReader(sshScript)
+	cmd.Stdin = strings.NewReader("WIN=" + strconv.Itoa(logWindow(intervalS)) + "\n" + sshScript)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	obs := time.Now().UTC()
@@ -79,7 +84,7 @@ func parseSSH(s string, obs time.Time) (model.Report, error) {
 	m := &model.ReportMetric{}
 	r.Metrics = m
 	var memTotal, memAvail, swapTotal, swapFree float64
-	var unitLines, portLines strings.Builder
+	var unitLines, portLines, logLines, failedLines strings.Builder
 	login := model.ReportSSH{}
 	complete := false
 	sc := bufio.NewScanner(strings.NewReader(s))
@@ -162,6 +167,10 @@ func parseSSH(s string, obs time.Time) (model.Report, error) {
 			}
 		case "F2B":
 			login.Fail2ban = rest
+		case "LOGJ":
+			logLines.WriteString(rest + "\n")
+		case "LOGF":
+			failedLines.WriteString(rest + "\n")
 		case "END":
 			complete = true
 		}
@@ -180,6 +189,7 @@ func parseSSH(s string, obs time.Time) (model.Report, error) {
 	}
 	r.Units = parseUnits(unitLines.String())
 	r.Ports = parsePorts(portLines.String())
+	r.Logs = foldLogs(append(parseJournal(logLines.String(), false), parseJournal(failedLines.String(), true)...))
 	if login.PasswordAuth != "" || len(login.Keys) > 0 {
 		r.SSH = &login
 	}

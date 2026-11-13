@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { ago, freshLabel, fullTime, healthLabel, stageLabel, stageOrder, useBackToClose, useTick } from "./lib";
 import type { Freshness, Health, HealthState, Sample } from "./types";
 
@@ -120,13 +120,20 @@ export function Unconfirmed() {
 
 export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  useBackToClose(true, onClose);
+  // The parent re-renders on every refresh and passes a new onClose each time; keep the
+  // latest in a ref so the effects below run once and focus is not pulled back mid-typing.
+  const close = useRef(onClose);
+  close.current = onClose;
+  const stableClose = useCallback(() => close.current(), []);
+  useBackToClose(true, stableClose);
   useEffect(() => {
-    const f = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    addEventListener("keydown", f);
     ref.current?.querySelector<HTMLElement>("input,textarea,select")?.focus();
+  }, []);
+  useEffect(() => {
+    const f = (e: KeyboardEvent) => e.key === "Escape" && close.current();
+    addEventListener("keydown", f);
     return () => removeEventListener("keydown", f);
-  }, [onClose]);
+  }, []);
   return (
     <div className="drawer-scrim" onClick={onClose}>
       <div className="drawer" role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>

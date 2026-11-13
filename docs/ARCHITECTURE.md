@@ -67,6 +67,18 @@ For hosts where nothing can be installed, an agent can poll over SSH. The script
 
 Probes run from the hub; every result is stored together with the probe location (`WANGLOU_VANTAGE`), because reachability only means something from a known place.
 
+## Logs and diagnosis
+
+Collectors read the journal, never follow it: each round asks for lines at warning level or worse in a window that overlaps the previous one, plus the last 12 lines of up to five failed units. Identical lines are folded with a count; sshd chatter and firewall drop messages from scanners are left out. The hub masks anything that looks like a credential, a long opaque value or a mail address, keeps lines for 7 days and at most 4000 per device.
+
+Who reads what:
+
+- People who can see a workspace read its log text.
+- Agents need the separate `logs` scope (granted at consent time, or later on the Access page), and only in workspaces with cloud policy `allow`. Otherwise they get counts of errors and warnings per unit, which still says where to look.
+- A service shows only its own units. A host shows everything except units of services in workspaces the viewer cannot see.
+
+`diagnose` (and the diagnosis panel) puts together the open findings with a playbook each — what it means, the steps, read-only commands for the owner to run — the recent probe history, the state of the hosts a service runs on, and the last day of warnings and errors.
+
 ## Security model
 
 - **Credentials resolve to a viewer.** Every request carries a token or a session; the viewer (identity, scopes, visible workspaces, allowed devices) is derived from it and passed down to every store call. A workspace sent by the client can only narrow the view.
@@ -80,7 +92,7 @@ Probes run from the hub; every result is stored together with the probe location
 
 ## MCP and OAuth
 
-The MCP endpoint is `/mcp` (streamable HTTP). Tools: `overview`, `search`, `get_entity`, `project_context`, `device_context`, `list_findings`, `access_options`, `submit_evidence`. All of them go through the same read model and authorization as the console.
+The MCP endpoint is `/mcp` (streamable HTTP). Tools: `overview`, `search`, `get_entity`, `project_context`, `device_context`, `list_findings`, `diagnose`, `logs`, `access_options`, `submit_evidence`. All of them go through the same read model and authorization as the console.
 
 Local clients use bearer tokens created on the Access page. Cloud clients use OAuth 2.1 with PKCE (S256), dynamic client registration or Client ID Metadata Documents (fetched only from allow-listed hosts). Access tokens are opaque, hashed, bound to the resource and expire after one hour; refresh tokens rotate, and replaying one revokes the whole family. During consent you choose which workspaces the client may see.
 

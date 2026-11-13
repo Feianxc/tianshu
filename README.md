@@ -30,11 +30,13 @@ It is built for people who run a personal homelab, a few cloud servers, side pro
 - **Evidence over assumptions** — health, freshness, lifecycle and acceptance are tracked separately. Stale data is never shown as healthy; security exposure (e.g. SSH password login) never paints a healthy host yellow.
 - **Findings that clean themselves up** — rules turn signals into a deduplicated to-do list that closes automatically once the problem is gone. Snooze for a day, a week or a month.
 - **Collectors** — a small agent for Linux and Windows (host metrics, systemd units, listening ports, local Git repositories), or read-only SSH polling for hosts where you cannot install anything. HTTP/TCP/TLS probes run from the hub.
+- **Logs and diagnosis** — collectors send journal lines at warning level or worse and the last lines of failed units; every finding comes with a playbook (what it means, steps, read-only commands). A log terminal and a diagnosis panel on each device and service page.
 - **SSH exposure monitoring** — effective `sshd -T` settings, failed logins in the last hour, fail2ban state and authorized key fingerprints. A key added after the baseline is a critical finding.
-- **MCP server for AI agents** — `overview`, `search`, `get_entity`, `project_context`, `device_context`, `list_findings`, `access_options`, `submit_evidence`. Bearer tokens for Claude Code and Codex, OAuth 2.1 (PKCE, dynamic registration, CIMD) for cloud clients.
+- **MCP server for AI agents** — `overview`, `search`, `get_entity`, `project_context`, `device_context`, `list_findings`, `diagnose`, `logs`, `access_options`, `submit_evidence`. Log text needs a separate `logs` permission. Bearer tokens for Claude Code and Codex, OAuth 2.1 (PKCE, dynamic registration, CIMD) for cloud clients.
 - **Workspace isolation built in** — every request is resolved to a viewer from its credential alone; objects in other workspaces return 404; per-workspace cloud policy (`allow`, `summary`, `deny`) decides what agents may see.
 - **No secrets inside** — the catalog stores only *where* a credential lives; values that look like secrets are refused. Tokens are stored as hashes. Every agent call is audited.
 - **Device pairing** — sign in on a phone without typing a token: approve the request on a computer that is already signed in, after checking that both screens show the same code.
+- **Phone status** — the Android app can report battery, network, memory and storage every 15 minutes with a token that can only report for that phone.
 - **Command palette** (`Ctrl K`), dark and light themes, mobile layout, and a tiny Android WebView shell.
 
 <table>

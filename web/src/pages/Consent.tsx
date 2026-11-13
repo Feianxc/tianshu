@@ -16,6 +16,7 @@ export function ConsentPage({ id }: { id: string }) {
   const { data, error } = useData<Req>(`/api/v1/oauth/requests/${id}`);
   const [spaces, setSpaces] = useState<string[]>([]);
   const [evidence, setEvidence] = useState(false);
+  const [logs, setLogs] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   if (error && !data) return <Failure error={new Error("这个授权请求已过期或已处理，请回到客户端重新发起。")} />;
@@ -25,7 +26,7 @@ export function ConsentPage({ id }: { id: string }) {
     setBusy(true);
     setErr("");
     try {
-      const r = await api.post<{ redirect: string }>(`/api/v1/oauth/requests/${id}`, { approve, workspaces: spaces, evidence });
+      const r = await api.post<{ redirect: string }>(`/api/v1/oauth/requests/${id}`, { approve, workspaces: spaces, evidence, logs });
       location.href = r.redirect;
     } catch (x) {
       setErr((x as Error).message);
@@ -48,9 +49,11 @@ export function ConsentPage({ id }: { id: string }) {
           ))}
         </fieldset>
         <label className="check"><input type="checkbox" checked={evidence} onChange={(e) => setEvidence(e.target.checked)} /><span>允许提交验收证据</span></label>
+        <label className="check"><input type="checkbox" checked={logs} onChange={(e) => setLogs(e.target.checked)} /><span>允许读取日志</span><small>只对完整字段的空间生效，用来定位问题</small></label>
         <ul className="consent-list">
           <li><Lamp state="ok" size={12} />可以查询状态、项目、问题和凭据引用</li>
           <li><Lamp state="unknown" size={12} />不能读取任何密码或密钥</li>
+          <li><Lamp state={logs ? "ok" : "unknown"} size={12} />{logs ? "可以读取警告和错误日志（已隐去疑似密钥）" : "只能看到各单元的错误和警告数量，看不到日志原文"}</li>
           <li><Lamp state="unknown" size={12} />不能操作服务器</li>
         </ul>
         {err && <p className="form-error" role="alert">{err}</p>}

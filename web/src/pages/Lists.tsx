@@ -32,8 +32,11 @@ export function DevicesPage() {
   const [adding, setAdding] = useState(false);
   if (error && !data) return <Failure error={error} retry={reload} />;
   const items = data?.items ?? [];
-  const groups = ["server", "pc", "phone", "tablet", "wearable", "router", "iot", "other"]
-    .map((t) => [t, items.filter((c) => (c.device?.type || "other") === t)] as const)
+  const known = ["server", "pc", "phone", "tablet", "wearable", "router", "iot"];
+  // Types outside the known list are shown under "other" rather than not at all.
+  const typeOf = (c: Card) => (known.includes(c.device?.type ?? "") ? c.device!.type : "other");
+  const groups = [...known, "other"]
+    .map((t) => [t, items.filter((c) => typeOf(c) === t)] as const)
     .filter(([, l]) => l.length > 0);
   return (
     <>

@@ -127,7 +127,7 @@ function Channel({ c, s }: { c: Card; s: Series | undefined }) {
               const h = 3 + (Math.min(100, Math.max(0, v)) / 100) * (H - 5);
               const recent = to - t < step * 3;
               return (
-                <rect key={t} className={`chan-tick${recent ? " recent" : ""}${prevSeen && t > prevSeen ? " fresh" : ""}`}
+                <rect key={t} className={`chan-tick${recent ? " recent" : ""}${v >= 90 ? " hot" : v >= 70 ? " warm" : ""}${prevSeen && t > prevSeen ? " fresh" : ""}`}
                   x={x(t) - tickW / 2} y={H - 1 - h} width={tickW} height={h} />
               );
             })}

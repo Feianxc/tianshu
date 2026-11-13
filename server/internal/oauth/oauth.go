@@ -38,6 +38,7 @@ const (
 	codeTTL    = 2 * time.Minute
 	requestTTL = 10 * time.Minute
 	maxClients = 500
+	maxPending = 100 // parked authorization requests at any time
 )
 
 // DefaultMetadataHosts are the hosts client ID metadata documents may come from.
@@ -53,6 +54,8 @@ type Server struct {
 	HTTP          *http.Client
 	ClientIP      func(*http.Request) string
 	limit         limiter
+	regLimit      limiter
+	fetchLimit    limiter
 }
 
 // limiter caps the unauthenticated endpoints that write rows, per client address.
@@ -62,25 +65,56 @@ type limiter struct {
 	seen map[string]*bucket
 }
 
+// limitKey groups IPv6 addresses by /64, the block one subscriber usually holds, so
+// rotating through it does not reset the count.
+func limitKey(addr string) string {
+	host := addr
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		host = h
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.To4() == nil {
+		return ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+	}
+	return host
+}
+
 type bucket struct {
 	window time.Time
 	n      int
 }
 
 func (l *limiter) allow(key string, perMinute int) bool {
+	return l.allowPer(key, perMinute, time.Minute)
+}
+
+// allowPer counts requests per key in fixed windows. When the table is full, expired
+// windows are dropped; if it is still full, unknown keys are refused. Wiping the whole
+// table instead would hand every abuser a fresh allowance.
+func (l *limiter) allowPer(key string, n int, window time.Duration) bool {
+	key = limitKey(key)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.seen == nil || len(l.seen) > 10000 {
+	if l.seen == nil {
 		l.seen = map[string]*bucket{}
 	}
 	now := time.Now()
 	b := l.seen[key]
-	if b == nil || now.Sub(b.window) > time.Minute {
+	if b == nil && len(l.seen) >= 10000 {
+		for k, x := range l.seen {
+			if now.Sub(x.window) > window {
+				delete(l.seen, k)
+			}
+		}
+		if len(l.seen) >= 10000 {
+			return false
+		}
+	}
+	if b == nil || now.Sub(b.window) > window {
 		b = &bucket{window: now}
 		l.seen[key] = b
 	}
 	b.n++
-	return b.n <= perMinute
+	return b.n <= n
 }
 
 func (s *Server) client(r *http.Request) string {
@@ -122,7 +156,7 @@ func (s *Server) resourceMeta(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"resource":                 s.Resource(),
 		"authorization_servers":    []string{s.Public},
-		"scopes_supported":         []string{model.ScopeRead, model.ScopeEvidence},
+		"scopes_supported":         []string{model.ScopeRead, model.ScopeEvidence, model.ScopeLogs},
 		"bearer_methods_supported": []string{"header"},
 		"resource_name":            "天枢",
 	})
@@ -139,7 +173,7 @@ func (s *Server) serverMeta(w http.ResponseWriter, _ *http.Request) {
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},
 		"code_challenge_methods_supported":               []string{"S256"},
 		"token_endpoint_auth_methods_supported":          []string{"none"},
-		"scopes_supported":                               []string{model.ScopeRead, model.ScopeEvidence},
+		"scopes_supported":                               []string{model.ScopeRead, model.ScopeEvidence, model.ScopeLogs},
 		"client_id_metadata_document_supported":          len(s.MetadataHosts) > 0,
 		"authorization_response_iss_parameter_supported": true,
 	})
@@ -179,7 +213,9 @@ func redirectMatches(registered []string, got string) bool {
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
-	if !s.limit.allow(s.client(r), 30) {
+	// A real client registers once; twenty an hour from one address is already generous,
+	// and keeps one address from filling the table that everyone shares.
+	if !s.regLimit.allowPer(s.client(r), 20, time.Hour) {
 		oauthError(w, http.StatusTooManyRequests, "temporarily_unavailable", "注册太频繁")
 		return
 	}
@@ -285,6 +321,15 @@ func (s *Server) lookupClient(ctx context.Context, id string) (store.OAuthClient
 // what an open redirect is.
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	// Resolving a URL client id costs an outbound fetch, so it is counted before it happens.
+	if strings.HasPrefix(q.Get("client_id"), "https://") && !s.fetchLimit.allow(s.client(r), 10) {
+		http.Error(w, "请求太频繁，稍后再试", http.StatusTooManyRequests)
+		return
+	}
+	if len(q.Get("client_id")) > 512 || len(q.Get("state")) > 512 || len(q.Get("scope")) > 256 || len(q.Get("redirect_uri")) > 1024 {
+		http.Error(w, "请求参数过长", http.StatusBadRequest)
+		return
+	}
 	client, err := s.lookupClient(r.Context(), q.Get("client_id"))
 	if err != nil {
 		http.Error(w, "客户端无效："+err.Error(), http.StatusBadRequest)
@@ -310,7 +355,8 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		bounce("unsupported_response_type")
 		return
 	}
-	if q.Get("code_challenge") == "" || q.Get("code_challenge_method") != "S256" {
+	// An S256 challenge is the base64url of 32 bytes: exactly 43 characters.
+	if len(q.Get("code_challenge")) != 43 || q.Get("code_challenge_method") != "S256" {
 		bounce("invalid_request")
 		return
 	}
@@ -331,6 +377,10 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		bounce("temporarily_unavailable")
 		return
 	}
+	if n, err := s.Store.PendingOAuthRequests(r.Context()); err != nil || n >= maxPending {
+		bounce("temporarily_unavailable")
+		return
+	}
 	id, err := s.Store.SaveOAuthRequest(r.Context(), store.OAuthRequest{ClientID: client.ClientID, ClientName: name, RedirectURI: redirect,
 		State: q.Get("state"), CodeChallenge: q.Get("code_challenge"), Scope: q.Get("scope"), Resource: resource, ExpiresAt: s.Store.Now().Add(requestTTL)})
 	if err != nil {
@@ -345,10 +395,13 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 
 // Approve turns the owner's decision into a code and returns where to send the
 // browser. It creates a dedicated agent principal for this grant.
-func (s *Server) Approve(ctx context.Context, req store.OAuthRequest, workspaces []string, evidence bool) (string, error) {
+func (s *Server) Approve(ctx context.Context, req store.OAuthRequest, workspaces []string, evidence, logs bool) (string, error) {
 	scopes := []string{model.ScopeRead}
 	if evidence {
 		scopes = append(scopes, model.ScopeEvidence)
+	}
+	if logs {
+		scopes = append(scopes, model.ScopeLogs)
 	}
 	name := fmt.Sprintf("oauth:%s:%s", req.ClientName, req.ID[len(req.ID)-6:])
 	p, _, err := s.Store.CreatePrincipal(ctx, model.Principal{Kind: "agent", Name: name, Scopes: scopes, Workspaces: workspaces})

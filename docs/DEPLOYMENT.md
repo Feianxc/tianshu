@@ -61,7 +61,7 @@ Create a collector identity on the Access page (scope `ingest`, limited to its d
 bash deploy/install-agent.sh <device-slug> https://tianshu.example.com ./token
 ```
 
-The agent runs as an unprivileged user with a 64 MB memory and 10 % CPU limit. Uninstall instructions are at the top of the script.
+To collect logs, add the user to the journal readers: `usermod -aG systemd-journal wanglou-agent && systemctl restart wanglou-agent`. The agent runs as an unprivileged user with a 64 MB memory and 10 % CPU limit. Uninstall instructions are at the top of the script.
 
 On Windows, copy `deploy/agent.example.yaml` to `.local/agent.yaml` and run `start-online.cmd`; put your server URL and SSH alias in `.local/online-env.cmd` (see the comments in the script). The `ssh:` section of the agent configuration polls hosts where nothing can be installed.
 

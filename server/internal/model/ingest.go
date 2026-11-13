@@ -20,6 +20,7 @@ type Report struct {
 	Units        []ReportUnit  `json:"units"`
 	Ports        []int         `json:"ports"`
 	SSH          *ReportSSH    `json:"ssh,omitempty"`
+	Logs         []ReportLog   `json:"logs,omitempty"`
 	Repos        []ReportRepo  `json:"repos"`
 	Errors       []string      `json:"errors"`
 }
@@ -63,6 +64,17 @@ type ReportUnit struct {
 	Name   string `json:"name"`
 	Active string `json:"active"`
 	Sub    string `json:"sub"`
+}
+
+// ReportLog is one journal line at warning level or worse, or one of the last lines
+// of a failed unit. The collector cuts and de-duplicates; the hub redacts again.
+type ReportLog struct {
+	TS       time.Time `json:"ts"`
+	Unit     string    `json:"unit,omitempty"`
+	Ident    string    `json:"ident,omitempty"`
+	Priority int       `json:"priority"` // syslog: 0 emergency … 3 error, 4 warning, 6 info
+	Message  string    `json:"message"`
+	Repeat   int       `json:"repeat,omitempty"` // identical lines folded into this one
 }
 
 // ReportSSH is how a host lets people in. None of it is secret: a fingerprint only

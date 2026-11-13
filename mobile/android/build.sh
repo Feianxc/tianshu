@@ -24,7 +24,7 @@ printf '<?xml version="1.0" encoding="utf-8"?>
 ' "$URL" > "$W/gen-res/values/hub.xml"
 "$BT/aapt2.exe" compile --dir "$W/gen-res" -o "$W/hub.zip"
 "$BT/aapt2.exe" link -I "$JAR" --manifest AndroidManifest.xml -o "$W/base.apk" --java "$W/gen" \
-  --min-sdk-version 26 --target-sdk-version 36 --version-code 2 --version-name 0.2.0 --debug-mode "$W/res.zip" "$W/hub.zip"
+  --min-sdk-version 26 --target-sdk-version 36 --version-code 3 --version-name 0.3.0 --debug-mode "$W/res.zip" "$W/hub.zip"
 
 javac -source 8 -target 8 -bootclasspath "$JAR" -Xlint:-options -encoding UTF-8 -d "$W/classes" \
   $(find src "$W/gen" -name '*.java')

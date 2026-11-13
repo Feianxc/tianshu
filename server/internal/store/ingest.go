@@ -114,6 +114,19 @@ func sanitize(r *model.Report) {
 	} else {
 		r.RunID = ""
 	}
+	// One report may not create rows without bound; real hosts stay far below these.
+	if len(r.Units) > 3000 {
+		r.Units = r.Units[:3000]
+	}
+	if len(r.Ports) > 1000 {
+		r.Ports = r.Ports[:1000]
+	}
+	if len(r.Repos) > 300 {
+		r.Repos = r.Repos[:300]
+	}
+	if len(r.Disks) > 64 {
+		r.Disks = r.Disks[:64]
+	}
 	r.Version = model.Scrub(r.Version, 40)
 	r.SystemdState = model.Scrub(r.SystemdState, 40)
 	if len(r.Errors) > 20 {
@@ -191,6 +204,7 @@ func (s *Store) admit(ctx context.Context, src string, r model.Report, obs time.
 func (s *Store) Ingest(ctx context.Context, device model.Entity, r model.Report) (map[string]int, error) {
 	sanitize(&r)
 	now := s.Now()
+	r.Logs = sanitizeLogs(r.Logs)
 	interval := min(max(r.IntervalS, minIntervalS), maxIntervalS)
 	if r.IntervalS <= 0 {
 		interval = 60
@@ -337,6 +351,11 @@ func (s *Store) Ingest(ctx context.Context, device model.Entity, r model.Report)
 		}
 		stats["repos_mapped"] = n
 	}
+	if n, err := s.applyLogs(ctx, device.ID, r.Logs); err != nil {
+		return nil, err
+	} else if n > 0 {
+		stats["logs"] = n
+	}
 	detail := map[string]any{"device": device.Slug, "version": r.Version, "errors": r.Errors}
 	if err := s.SourceOK(ctx, src, r.Collector, interval, detail); err != nil {
 		return nil, err
@@ -416,16 +435,11 @@ func (s *Store) applyUnits(ctx context.Context, device model.Entity, units []mod
 			rows.Close()
 			return 0, err
 		}
-		m := parseMap(attrs)
-		if u, ok := m["unit"].(string); ok && u != "" {
-			note(id, u)
+		if declared[id] == nil {
+			declared[id] = map[string]bool{}
 		}
-		if l, ok := m["units"].([]any); ok {
-			for _, x := range l {
-				if u, ok := x.(string); ok {
-					note(id, u)
-				}
-			}
+		for _, u := range DeclaredUnits(parseMap(attrs)) {
+			note(id, u)
 		}
 	}
 	rows.Close()

@@ -25,7 +25,7 @@ import (
 )
 
 // Version is reported to MCP clients.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 const instructions = `天枢（原名望楼）是用户的个人总控台，汇总其设备、服务、项目、仓库和凭据引用。
 先调用 overview 了解全局，再用 search、get_entity、project_context、device_context 下钻。
@@ -253,6 +253,16 @@ type AccessItem struct {
 	Usage      string `json:"usage"`
 }
 
+// LogsIn asks for log lines.
+type LogsIn struct {
+	RefIn
+	Unit     string `json:"unit,omitempty" jsonschema:"只看某个运行单元，例如 nginx.service"`
+	Level    string `json:"level,omitempty" jsonschema:"error（默认，错误及以上）、warning 或 all"`
+	Since    string `json:"since,omitempty" jsonschema:"往回看多久，例如 30m、6h、72h；默认 24h，最长 168h"`
+	Contains string `json:"contains,omitempty" jsonschema:"只返回包含这段文字的行，不区分大小写"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"最多返回多少行，默认 100，最大 500"`
+}
+
 // EvidenceIn is a verification record.
 type EvidenceIn struct {
 	Project     string `json:"project" jsonschema:"项目 slug"`
@@ -435,6 +445,32 @@ func register(srv *mcp.Server, st *store.Store, vw *view.Service) {
 				out.Options = append(out.Options, item)
 			}
 			return out, nil
+		})
+
+	tool(srv, st, readOnly("diagnose", "诊断",
+		"定位一个设备或服务的问题：返回未解决的问题及每条的含义、处理步骤和只读排查命令，最近的探测结果，所在主机的状态，以及最近 24 小时的警告和错误日志。用户问“为什么坏了”“怎么处理”时先调用它。"),
+		func(in RefIn) string { return in.ID + in.Kind + "/" + in.Slug },
+		func(ctx context.Context, v model.Viewer, in RefIn) (*view.Diagnosis, error) {
+			id, err := s.resolve(ctx, v, in)
+			if err != nil {
+				return nil, err
+			}
+			return vw.Diagnose(ctx, v, id)
+		})
+
+	tool(srv, st, readOnly("logs", "日志",
+		"读取一个设备或服务最近的日志（采集的是警告及以上级别，以及失败单元的最后几行，保留 7 天，入库前已隐去疑似密钥）。服务只返回它自己的运行单元。没有日志权限或空间只给摘要时，只返回各单元的错误和警告数量。collecting=false 表示这里没有采集日志，不代表没有问题。"),
+		func(in LogsIn) string { return in.ID + in.Kind + "/" + in.Slug + " " + in.Unit },
+		func(ctx context.Context, v model.Viewer, in LogsIn) (*view.LogsOut, error) {
+			id, err := s.resolve(ctx, v, in.RefIn)
+			if err != nil {
+				return nil, err
+			}
+			since, err := time.ParseDuration(in.Since)
+			if in.Since != "" && err != nil {
+				return nil, errors.New("since 的格式是 30m、6h、72h 这样的时长")
+			}
+			return vw.Logs(ctx, v, view.LogQuery{EntityID: id, Unit: in.Unit, Level: in.Level, Since: since, Contains: in.Contains, Limit: in.Limit})
 		})
 
 	mcp.AddTool(srv, &mcp.Tool{Name: "submit_evidence", Title: "提交验收证据",

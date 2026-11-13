@@ -7,10 +7,11 @@ const (
 	ScopeEvidence = "evidence" // submit verification evidence
 	ScopeIngest   = "ingest"   // report as a collector
 	ScopeAdmin    = "admin"    // tokens, audit, export
+	ScopeLogs     = "logs"     // read collected log lines; granted to agents one by one
 )
 
 // AllScopes is every valid scope.
-var AllScopes = []string{ScopeRead, ScopeWrite, ScopeEvidence, ScopeIngest, ScopeAdmin}
+var AllScopes = []string{ScopeRead, ScopeWrite, ScopeEvidence, ScopeIngest, ScopeAdmin, ScopeLogs}
 
 // Viewer is the resolved authorization context of one request. It is built only
 // from the credential presented, never from a client-supplied workspace id, and
@@ -30,11 +31,21 @@ type Viewer struct {
 // a response directly.
 func System() Viewer {
 	return Viewer{PrincipalID: "system", Name: "system", Kind: "system", All: true, AllDevices: true,
-		Scopes: map[string]bool{ScopeRead: true, ScopeWrite: true, ScopeAdmin: true, ScopeIngest: true, ScopeEvidence: true}}
+		Scopes: map[string]bool{ScopeRead: true, ScopeWrite: true, ScopeAdmin: true, ScopeIngest: true, ScopeEvidence: true, ScopeLogs: true}}
 }
 
 // Has reports whether the viewer holds a scope.
 func (v Viewer) Has(scope string) bool { return v.Scopes[scope] }
+
+// CanReadLogs reports whether the viewer may read log text. People who can read a
+// workspace can read its logs; an agent needs the scope granted explicitly, because
+// log lines are the least predictable thing the hub holds.
+func (v Viewer) CanReadLogs() bool {
+	if v.Kind == "agent" {
+		return v.Has(ScopeLogs)
+	}
+	return v.Has(ScopeRead)
+}
 
 // CanSee reports whether the viewer may read a workspace.
 func (v Viewer) CanSee(workspaceID string) bool { return v.All || v.Workspaces[workspaceID] }

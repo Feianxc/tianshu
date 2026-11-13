@@ -125,3 +125,19 @@ func TestSanitizeRemoteStripsCredentials(t *testing.T) {
 		}
 	}
 }
+
+func TestJournalLinesAreParsedFilteredAndFolded(t *testing.T) {
+	in := `{"__REALTIME_TIMESTAMP":"1762900000000000","PRIORITY":"3","_SYSTEMD_UNIT":"app.service","MESSAGE":"boom"}
+{"__REALTIME_TIMESTAMP":"1762900001000000","PRIORITY":"3","_SYSTEMD_UNIT":"app.service","MESSAGE":"boom"}
+{"__REALTIME_TIMESTAMP":"1762900002000000","PRIORITY":"4","SYSLOG_IDENTIFIER":"sshd","MESSAGE":"scanner hung up"}
+{"__REALTIME_TIMESTAMP":"1762900002500000","PRIORITY":"4","SYSLOG_IDENTIFIER":"kernel","MESSAGE":"[UFW BLOCK] IN=eth0 SRC=192.0.2.4"}
+{"__REALTIME_TIMESTAMP":"1762900003000000","PRIORITY":"6","UNIT":"app.service","_SYSTEMD_UNIT":"init.scope","MESSAGE":[104,105]}
+not json`
+	got := foldLogs(parseJournal(in, false))
+	if len(got) != 2 || got[0].Repeat != 1 || got[0].Unit != "app.service" || got[1].Message != "hi" || got[1].Unit != "app.service" {
+		t.Fatalf("%+v", got)
+	}
+	if len(parseJournal(in, true)) != 5 {
+		t.Fatal("失败单元的日志不应过滤 sshd")
+	}
+}
